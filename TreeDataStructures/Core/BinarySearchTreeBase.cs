@@ -16,8 +16,30 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
     
     public bool IsReadOnly => false;
 
-    public ICollection<TKey> Keys => throw new NotImplementedException();
-    public ICollection<TValue> Values => throw new NotImplementedException();
+    public ICollection<TKey> Keys
+    {
+        get
+        {
+            var newList = new List<TKey>();
+            foreach (var entry in InOrder())
+            {
+                newList.Add(entry.Key);
+            }
+            return newList;
+        }
+    }
+    public ICollection<TValue> Values
+    {
+        get
+        {
+            var newList = new List <TValue>();
+            foreach (var entry in InOrder())
+            {
+                newList.Add(entry.Value);
+            }
+            return newList;
+        }
+    }
     
     
     public virtual void Add(TKey key, TValue value)
