@@ -16,6 +16,7 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
     
     public bool IsReadOnly => false;
 
+    // метод для получения списка всех ключей дерева
     public ICollection<TKey> Keys
     {
         get
@@ -28,6 +29,8 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
             return newList;
         }
     }
+
+    // метод для получения списка всех значений дерева
     public ICollection<TValue> Values
     {
         get
@@ -45,7 +48,7 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
     public virtual void Add(TKey key, TValue value)
     {
         TNode newNode = CreateNode(key, value);
-
+        // если первый узел впринципе
         if (Root == null)
         {
             Root = newNode;
@@ -57,20 +60,21 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
         TNode? current = Root;
         TNode? parent = null;
         int cmp = 0;
-
+        // идём до нужного места сравнениями
         while (current != null)
         {
             parent = current;
             cmp = Comparer.Compare(key, current.Key);
 
             if (cmp == 0)
-            {
+            {   
+                // обновляем значения, если такой ключ уже есть
                 current.Value = value;
                 return;
             }
             current = cmp < 0 ? current.Left : current.Right;
         }
-
+        // ставим на нужное место, если ключа нет
         newNode.Parent = parent;
         if (cmp < 0)
             parent!.Left = newNode;
@@ -81,7 +85,7 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
         OnNodeAdded(newNode);
     }
 
-    
+    //вспомогательный метод удаления узла
     public virtual bool Remove(TKey key)
     {
         TNode? node = FindNode(key);
@@ -95,39 +99,48 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
     
     protected virtual void RemoveNode(TNode node)
     {
+        // если у удаляемого узла один потомок
         if (node.Left == null)
         {
             Transplant(node, node.Right);
+            OnNodeRemoved(node.Parent, node.Right);
         }
         else if (node.Right == null)
         {
             Transplant(node, node.Left);
+            OnNodeRemoved(node.Parent, node.Left);
         }
         else
         {
-            // минимальный узел в правом поддереве
+            //если два потомка
             TNode successor = node.Right;
+            // ищем минимальный узел в правом поддереве
             while (successor.Left != null)
             {
                 successor = successor.Left;
             }
-
+            // случай, если удаляемый узел не прямой предок successor
             if (successor.Parent != node)
             {
                 Transplant(successor, successor.Right);
                 successor.Right = node.Right;
-                successor.Right.Parent = successor;
+                if (successor.Right != null)
+                    successor.Right.Parent = successor;
             }
 
             Transplant(node, successor);
             successor.Left = node.Left;
-            successor.Left.Parent = successor;
+            if (successor.Left != null)
+                successor.Left.Parent = successor;
+
+            OnNodeRemoved(node.Parent, successor);
         }
     }
 
-
+    // проверка существования значения с определённым ключом
     public virtual bool ContainsKey(TKey key) => FindNode(key) != null;
     
+    // получение значения по ключу
     public virtual bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
     {
         TNode? node = FindNode(key);
@@ -140,6 +153,7 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
         return false;
     }
 
+    // метод позволяет работать с деревом как с массивом
     public TValue this[TKey key]
     {
         get => TryGetValue(key, out TValue? val) ? val : throw new KeyNotFoundException();
@@ -168,7 +182,7 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
     #region Helpers
     protected abstract TNode CreateNode(TKey key, TValue value);
     
-    
+    // метод поиска узлов по ключу
     protected TNode? FindNode(TKey key)
     {
         TNode? current = Root;
@@ -181,11 +195,14 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
         return null;
     }
 
+    // поворот влево
     protected void RotateLeft(TNode x)
     {
+        // у станет новым корнем поддерева
         TNode? y = x.Right;
         if (y == null) return;
 
+        // левое поддерево у станет правым поддеревом х
         x.Right = y.Left;
         if (y.Left != null)
             y.Left.Parent = x;
@@ -193,16 +210,18 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
         y.Parent = x.Parent;
 
         if (x.Parent == null)
-            Root = y;
+            Root = y; // х был корнем
         else if (x.IsLeftChild)
             x.Parent.Left = y;
         else
             x.Parent.Right = y;
-        
-        y.Left = x;
+
+        // х становится левым потомком у
+        y.Left = x; 
         x.Parent = y;
     }
 
+    // зеркальное отражение левого поворота
     protected void RotateRight(TNode y)
     {
         TNode? x = y.Left;
@@ -225,6 +244,7 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
         y.Parent = x;
     }
     
+    // для авл деревьев, балансировка для дисбаланса справа
     protected void RotateBigLeft(TNode x)
     {
         if (x.Right is null) return;
@@ -232,6 +252,7 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
         RotateLeft(x);
     }
     
+    // зеркально предыдущему
     protected void RotateBigRight(TNode y)
     {
         if (y.Left is null) return;
@@ -239,6 +260,7 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
         RotateRight(y);
     }
     
+    // для сплау деревьев два левых подряд
     protected void RotateDoubleLeft(TNode x)
     {
         TNode? y = x.Right;
@@ -247,6 +269,7 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
         RotateLeft(y);
     }
     
+    // зеркально предыдущему
     protected void RotateDoubleRight(TNode y)
     {
         TNode? x = y.Left;
@@ -255,6 +278,7 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
         RotateRight(x);
     }
     
+    // метод для замены одного узла на другой
     protected void Transplant(TNode u, TNode? v)
     {
         if (u.Parent == null)
@@ -297,8 +321,8 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
         // probably add something here
         private readonly TNode? _root;
         private readonly TraversalStrategy _strategy; // or make it template parameter?
-        private TNode? _current;
-        private bool _started;
+        private TNode? _current; // текущий узел в процессе итерации
+        private bool _started; // флаг начала итерации
 
         public TreeIterator(TNode? root, TraversalStrategy strategy)
         {
@@ -311,6 +335,7 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
         public IEnumerator<TreeEntry<TKey, TValue>> GetEnumerator() => this;
         IEnumerator IEnumerable.GetEnumerator() => this;
         
+        // метод получения текущего узла итерации
         public TreeEntry<TKey, TValue> Current
         {
             get
@@ -323,6 +348,7 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
             }
         }
 
+        // метод получения глубины узла
         private int GetCurrentDepth(TNode? node)
         {
             int depth = 0;
@@ -335,6 +361,7 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
         }
         object IEnumerator.Current => Current;
         
+        // метод перехода к следующему узлу
         public bool MoveNext()
         {
             if (!_started)
@@ -348,18 +375,20 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
             return _current is not null;
         }
         
+        // сброс итератора
         public void Reset()
         {
             _current = null;
             _started = false;
         }
 
-        
+        // очистка ресурсов
         public void Dispose()
         {
             // TODO release managed resources here
         }
 
+        // поиск первого узла обхода
         private static TNode? GetFirstNode(TNode? root, TraversalStrategy strategy)
         {
             if (root is null) return null;
@@ -367,15 +396,16 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
             return strategy switch
             {
                 TraversalStrategy.InOrder => GoLeft(root),
-                TraversalStrategy.PreOrder =>root,
+                TraversalStrategy.PreOrder => root,
                 TraversalStrategy.PostOrder => GoLeftR(root),
                 TraversalStrategy.InOrderReverse => GoRight(root),
-                TraversalStrategy.PreOrderReverse => GoRightL(root),
-                TraversalStrategy.PostOrderReverse => root,
+                TraversalStrategy.PreOrderReverse => root,
+                TraversalStrategy.PostOrderReverse => GoRightL(root),
                 _ => throw new ArgumentOutOfRangeException(nameof(strategy))
             };
         }
 
+        // получение следующего узла при очередной итерации
         private static TNode? GetNextNode(TNode? node, TraversalStrategy strategy)
         {
             if (node is null) return null;
@@ -391,12 +421,14 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
             };
         }
 
+        // до конца влево
         private static TNode GoLeft(TNode node)
         {
            while (node.Left is not null) node = node.Left;
            return node;
         }
 
+        // идти влево с приоритетом левого потомка
         private static TNode GoLeftR(TNode node)
         {
             while (node.Left is not null || node.Right is not null)
@@ -413,12 +445,14 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
             return node;
         }
 
+        // до конца вправо
         private static TNode GoRight(TNode node)
         {
             while(node.Right is not null) node = node.Right;
             return  node;
         }
 
+        // до конца вправо с приоритетом правого потомка
         private static TNode GoRightL(TNode node)
         {
             while (node.Left is not null || node.Right is not null)
@@ -435,6 +469,7 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
             return node;
         }
 
+        // для инфиксного (л - к - п) он же симметричный
         private static TNode? NextInOrder(TNode node)
         {
             if (node.Right is not null)
@@ -448,6 +483,8 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
             }
             return current.Parent;
         }
+
+        // реверс предыдущего обхода (п - к - л) 
         private static TNode? NextInOrderReverse(TNode node)
         {
             if (node.Left is not null)
@@ -461,6 +498,8 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
             }
             return current.Parent;
         }
+
+        // для префиксного (к - л - п) он же прямой
         private static TNode? NextPreOrder(TNode node)
         {
             if (node.Left is not null) return node.Left;
@@ -475,15 +514,25 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
             return null;
         }
 
+        // реверс предыдущего (к - п - л)
         private static TNode? NextPreOrderReverse(TNode node)
         {
-            if (node.Parent is null) return null;
-
-            if (node.IsRightChild && node.Parent.Left is not null) return GoRightL(node.Parent.Left);
-
-            return node.Parent;
+            if (node.Right is not null) return node.Right;
+    
+            if (node.Left is not null) return node.Left;
+    
+            var current = node;
+            while (current.Parent is not null)
+            {
+                if (current.Parent.Left is not null && current.IsRightChild)
+                    return current.Parent.Left;
+                current = current.Parent;
+            }
+    
+            return null;
         }
 
+        // для постфиксного обхода (л - п - к) он же обратный
         private static TNode? NextPostOrder(TNode node)
         {
             if (node.Parent is null) return null;
@@ -491,28 +540,30 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
             return node.Parent;
 
         }
+
+        // реверс бредыдущего обхода (п - л - к)
         private static TNode? NextPostOrderReverse(TNode node)
         {
-            if (node.Right is not null) return node.Right;
-            if (node.Left is not null) return node.Left;
-
-            var current = node;
-            while (current.Parent is not null)
-            {
-                if (current.Parent.Left is not null && current.IsRightChild) return current.Parent.Left;
-                current = current.Parent;
-            }
-            return null;
+            if (node.Parent is null) return null;
+    
+            // Если мы правый потомок и у родителя есть левый потомок
+            if (node.IsRightChild && node.Parent.Left is not null)
+                return GoRightL(node.Parent.Left);
+    
+            // Иначе поднимаемся к родителю
+            return node.Parent;
         }
     }
     
     
     private enum TraversalStrategy { InOrder, PreOrder, PostOrder, InOrderReverse, PreOrderReverse, PostOrderReverse }
     
+    // поддержка foreach, чтобы дерево можно было перебрать
     public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator() => new DictionaryEnumerator(Root);
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
+    // адаптер для словаря
     private class DictionaryEnumerator(TNode? root) : IEnumerator<KeyValuePair<TKey, TValue>>
     {
         private TreeIterator _inner = new(root, TraversalStrategy.InOrder);
@@ -526,6 +577,8 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
     public void Add(KeyValuePair<TKey, TValue> item) => Add(item.Key, item.Value);
     public void Clear() { Root = null; Count = 0; }
     public bool Contains(KeyValuePair<TKey, TValue> item) => ContainsKey(item.Key);
+
+    // копирование в массив
     public void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
     {
         ArgumentNullException.ThrowIfNull(array);
