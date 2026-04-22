@@ -127,20 +127,35 @@ public class Treap<TKey, TValue> : BinarySearchTreeBase<TKey, TValue, TreapNode<
 
     public override bool Remove(TKey key)
     {
-        // Проверяем, существует ли ключ
-        var node = FindNode(key);
-        if (node == null) return false;
-        
-        // Разрезаем дерево на 3 части
-        var (left, temp) = Split(Root, key);
-        var (mid, right) = Split(temp, key);
-
-        Root = Merge(left, right);
-        
-        Count--;
-        OnNodeRemoved(node.Parent, node.Right ?? node.Left);
-        
+        Root = Remove(Root, key);
         return true;
+    }
+
+    private TreapNode<TKey, TValue>? Remove(TreapNode<TKey, TValue>? node, TKey key)
+    {
+        if (node == null) return null;
+    
+        int cmp = Comparer.Compare(key, node.Key);
+    
+        if (cmp < 0)
+        {
+            node.Left = Remove(node.Left, key);
+            if (node.Left != null) node.Left.Parent = node;
+        }
+        else if (cmp > 0)
+        {
+            node.Right = Remove(node.Right, key);
+            if (node.Right != null) node.Right.Parent = node;
+        }
+        else  // cmp == 0 - нашли узел для удаления
+        {
+            Count--;
+            var merged = Merge(node.Left, node.Right);
+            if (merged != null) merged.Parent = node.Parent;
+            return merged;
+        }
+    
+        return node;
     }
 
     protected override TreapNode<TKey, TValue> CreateNode(TKey key, TValue value)

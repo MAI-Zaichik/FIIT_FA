@@ -103,12 +103,10 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
         if (node.Left == null)
         {
             Transplant(node, node.Right);
-            OnNodeRemoved(node.Parent, node.Right);
         }
         else if (node.Right == null)
         {
             Transplant(node, node.Left);
-            OnNodeRemoved(node.Parent, node.Left);
         }
         else
         {
@@ -124,16 +122,12 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
             {
                 Transplant(successor, successor.Right);
                 successor.Right = node.Right;
-                if (successor.Right != null)
-                    successor.Right.Parent = successor;
+                successor.Right.Parent = successor;
             }
 
             Transplant(node, successor);
             successor.Left = node.Left;
-            if (successor.Left != null)
-                successor.Left.Parent = successor;
-
-            OnNodeRemoved(node.Parent, successor);
+            successor.Left.Parent = successor;
         }
     }
 
@@ -371,7 +365,7 @@ public abstract class BinarySearchTreeBase<TKey, TValue, TNode>(IComparer<TKey>?
                 return _current is not null;
             }
 
-            _current = GetNextNode(_current,_strategy);
+            _current = GetNextNode(_current, _strategy);
             return _current is not null;
         }
         
